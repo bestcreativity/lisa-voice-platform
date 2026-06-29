@@ -1,0 +1,6 @@
+{
+  "name": "Lisa - Executive Recruiter",
+  "description": "An AI executive recruiter voice assistant powered by Gemini Multimodal Live API to interview, screen, and vet executive leadership candidates.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["Real-time Voice Interaction", "Low-latency AI Response", "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
