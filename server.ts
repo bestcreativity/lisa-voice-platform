@@ -687,7 +687,19 @@ async function startServer() {
       if (!response.ok) {
         const rawRes = await response.text();
         diagLog(`Twilio Trigger Error Response:`, rawRes);
-        return res.status(500).json({ error: `Twilio API: ${rawRes}` });
+        let message = rawRes;
+        try {
+          const twilioErr = JSON.parse(rawRes);
+          if (twilioErr.code === 21219) {
+            message =
+              'Twilio trial account: verify this number first at console.twilio.com → Phone Numbers → Verified Caller IDs, or upgrade your account.';
+          } else if (twilioErr.message) {
+            message = `Twilio (${twilioErr.code ?? 'error'}): ${twilioErr.message}`;
+          }
+        } catch {
+          message = `Twilio API: ${rawRes}`;
+        }
+        return res.status(400).json({ error: message });
       }
 
       const data: any = await response.json();

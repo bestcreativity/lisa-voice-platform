@@ -36,6 +36,19 @@ const IPHONE_DIAL_KEYS: { digit: string; letters?: string }[] = [
   { digit: '#' },
 ];
 
+/** Strip formatting and ensure E.164-style leading + (e.g. paste "234 708…" or "0708…"). */
+function normalizePhoneNumber(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  const digits = trimmed.replace(/\D/g, '');
+  if (!digits) return '';
+  return `+${digits}`;
+}
+
+function phoneDigits(value: string): string {
+  return value.replace(/\D/g, '');
+}
+
 async function readApiJson(response: Response): Promise<Record<string, unknown>> {
   const raw = await response.text();
   const contentType = response.headers.get('content-type') ?? '';
@@ -413,7 +426,8 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
 
   // Phone Call Engine state variables
   const [phoneNumber, setPhoneNumber] = useState(() => {
-    return localStorage.getItem('lisa_phone_number') || '';
+    const saved = localStorage.getItem('lisa_phone_number') || '';
+    return normalizePhoneNumber(saved);
   });
   const [phoneCallActive, setPhoneCallActive] = useState(() => {
     return localStorage.getItem('lisa_phone_call_active') === 'true';
@@ -553,9 +567,13 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
 
 
   const startPhoneCall = async () => {
-    if (!phoneNumber || phoneNumber.trim().length < 4) {
-      setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ❌ Dial Error: Please enter a valid number.`]);
+    const dialNumber = normalizePhoneNumber(phoneNumber);
+    if (!dialNumber || phoneDigits(dialNumber).length < 7) {
+      setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ❌ Dial Error: Enter a valid number with country code (e.g. +2347080884022).`]);
       return;
+    }
+    if (dialNumber !== phoneNumber) {
+      setPhoneNumber(dialNumber);
     }
     
     setPhoneLogs([]);
@@ -568,7 +586,7 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          phoneNumber: phoneNumber.trim(),
+          phoneNumber: dialNumber,
           twilioAccountSid: twilioAccountSid.trim() || undefined,
           twilioAuthToken: twilioAuthToken.trim() || undefined,
           twilioPhoneNumber: twilioPhoneNumber.trim() || undefined,
@@ -594,11 +612,11 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
 
       const callSid = data.callSid as string;
       setActiveCallSid(callSid);
-      dispatchCallStarted({ phoneNumber: phoneNumber.trim(), callSid, status: 'ringing', provider: 'twilio' });
+      dispatchCallStarted({ phoneNumber: dialNumber, callSid, status: 'ringing', provider: 'twilio' });
 
       setPhoneCallStatus('ringing');
       setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🔔 Twilio triggered call! Call SID: ${callSid}`]);
-      setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🔔 Ringing destination number: ${phoneNumber}...`]);
+      setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🔔 Ringing destination number: ${dialNumber}...`]);
       
       setTimeout(() => {
         setPhoneCallStatus('connected');
@@ -650,13 +668,19 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
 
   const handleKeypadPress = (digit: string) => {
     if (phoneCallStatus === 'disconnected') {
-      setPhoneNumber(prev => prev + digit);
+      setPhoneNumber((prev) => {
+        const digits = phoneDigits(prev) + digit;
+        return `+${digits}`;
+      });
     }
   };
 
   const handleKeypadBackspace = () => {
     if (phoneCallStatus === 'disconnected') {
-      setPhoneNumber(prev => prev.slice(0, -1));
+      setPhoneNumber((prev) => {
+        const digits = phoneDigits(prev).slice(0, -1);
+        return digits ? `+${digits}` : '';
+      });
     }
   };
 
@@ -1374,11 +1398,26 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
                 className="flex-1 flex flex-col bg-[#0a0a0a] rounded-2xl border border-white/5 overflow-hidden"
               >
                 <div className="flex-1 flex flex-col items-center justify-between py-4 px-3 min-h-0">
-                  {/* Number display — iPhone style */}
+                  {/* Number display — tap to paste or type */}
                   <div className="flex flex-col items-center justify-center flex-1 w-full min-h-[88px] px-2 text-center">
-                    <p className={`font-light tracking-wide tabular-nums leading-none transition-all ${phoneNumber ? 'text-[26px] text-white' : 'text-[15px] text-zinc-500'}`}>
-                      {phoneNumber || 'Enter number'}
-                    </p>
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(normalizePhoneNumber(e.target.value))}
+                      onPaste={(e) => {
+                        e.preventDefault();
+                        setPhoneNumber(normalizePhoneNumber(e.clipboardData.getData('text')));
+                      }}
+                      placeholder="+2347080884022"
+                      disabled={phoneCallStatus !== 'disconnected'}
+                      className={`w-full bg-transparent text-center font-light tracking-wide tabular-nums leading-none focus:outline-none disabled:opacity-80 ${phoneNumber ? 'text-[26px] text-white' : 'text-[15px] text-zinc-500 placeholder:text-zinc-600'}`}
+                      aria-label="Phone number"
+                    />
+                    {phoneCallStatus === 'disconnected' && (
+                      <p className="text-[10px] text-zinc-600 mt-2">Paste any format — + is added automatically</p>
+                    )}
                     {phoneCallStatus !== 'disconnected' && (
                       <p className="text-[13px] text-emerald-400 mt-2 font-medium capitalize">
                         {phoneCallStatus === 'connected'
@@ -1419,7 +1458,7 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
                         <button
                           type="button"
                           onClick={startPhoneCall}
-                          disabled={!phoneNumber || phoneNumber.trim().length < 4}
+                          disabled={phoneDigits(phoneNumber).length < 7}
                           className="w-[58px] h-[58px] rounded-full bg-[#34c759] hover:bg-[#2db84d] active:bg-[#28a745] disabled:opacity-35 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer transition-colors shadow-lg shadow-emerald-900/30"
                           aria-label="Call"
                         >
