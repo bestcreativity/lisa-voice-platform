@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   Mic, MicOff, Volume2, VolumeX, Terminal, Info, Settings, Briefcase, User, FileText, CheckCircle,
-  Video, ExternalLink, Lock, Key, Sparkles, Copy, LogIn, LogOut, Globe, Calendar, Phone, PhoneOff 
+  Sparkles, Copy, Calendar, Phone, PhoneOff, Delete 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AudioRecorder, AudioPlayer } from '../lib/audio-processor';
@@ -20,6 +20,21 @@ interface AgentConfig {
   priorConversation: string;
   clientInfo: string;
 }
+
+const IPHONE_DIAL_KEYS: { digit: string; letters?: string }[] = [
+  { digit: '1' },
+  { digit: '2', letters: 'ABC' },
+  { digit: '3', letters: 'DEF' },
+  { digit: '4', letters: 'GHI' },
+  { digit: '5', letters: 'JKL' },
+  { digit: '6', letters: 'MNO' },
+  { digit: '7', letters: 'PQRS' },
+  { digit: '8', letters: 'TUV' },
+  { digit: '9', letters: 'WXYZ' },
+  { digit: '*' },
+  { digit: '0', letters: '+' },
+  { digit: '#' },
+];
 
 const DEFAULT_AGENTS: Record<string, AgentConfig> = {
   "Executive Recruiter": {
@@ -144,8 +159,10 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
   });
 
   // Model Engine State & Key Management
-  const [modelEngine, setModelEngine] = useState<'gemini' | 'elevenlabs' | 'local'>(() => {
-    return (localStorage.getItem('lisa_model_engine') as any) || 'gemini';
+  const [modelEngine, setModelEngine] = useState<'gemini' | 'elevenlabs'>(() => {
+    const saved = localStorage.getItem('lisa_model_engine');
+    if (saved === 'gemini' || saved === 'elevenlabs') return saved;
+    return 'gemini';
   });
   const [elevenLabsApiKey, setElevenLabsApiKey] = useState(() => {
     return localStorage.getItem('lisa_elevenlabs_api_key') || '';
@@ -357,44 +374,7 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
     });
   };
 
-  // Channel Sub-tab State
-  const [channelSubTab, setChannelSubTab] = useState<'zoom' | 'meet' | 'phone'>(() => {
-    const saved = localStorage.getItem('lisa_channel_sub_tab');
-    if (saved === 'meet' || saved === 'phone') return saved;
-    return 'zoom';
-  });
-
-  // Zoom Config State variables
-  const [zoomMeetUrl, setZoomMeetUrl] = useState(() => {
-    return localStorage.getItem('lisa_zoom_meet_url') || '';
-  });
-  const [zoomMeetActive, setZoomMeetActive] = useState(() => {
-    return localStorage.getItem('lisa_zoom_meet_active') === 'true';
-  });
-  const [isSandboxZoom, setIsSandboxZoom] = useState(() => {
-    const saved = localStorage.getItem('lisa_is_sandbox_zoom');
-    return saved !== null ? saved === 'true' : true;
-  });
-  const [zoomMeetingId, setZoomMeetingId] = useState(() => {
-    return localStorage.getItem('lisa_zoom_meeting_id') || '412 8893 2551';
-  });
-  const [zoomPasscode, setZoomPasscode] = useState(() => {
-    return localStorage.getItem('lisa_zoom_passcode') || 'LisaCXO';
-  });
-  const [copiedZoom, setCopiedZoom] = useState(false);
-  const [isZoomProvisioning, setIsZoomProvisioning] = useState(false);
-  const [zoomError, setZoomError] = useState<string | null>(null);
-
-  // Google Meet Config State variables
-  const [googleMeetUrl, setGoogleMeetUrl] = useState(() => {
-    return localStorage.getItem('lisa_google_meet_url') || '';
-  });
-  const [googleMeetActive, setGoogleMeetActive] = useState(() => {
-    return localStorage.getItem('lisa_google_meet_active') === 'true';
-  });
-  const [copiedMeet, setCopiedMeet] = useState(false);
-
-  // Candidate Profile Configuration State variables
+  // Phone Call Engine state variables
   const [candidateFirstName, setCandidateFirstName] = useState(() => {
     return localStorage.getItem('lisa_candidate_first_name') || 'Valued Partner';
   });
@@ -418,9 +398,6 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
   const [phoneLogs, setPhoneLogs] = useState<string[]>([]);
 
   // Twilio integration states
-  const [isTwilioMode, setIsTwilioMode] = useState(() => {
-    return localStorage.getItem('lisa_is_twilio_mode') === 'true';
-  });
   const [twilioAccountSid, setTwilioAccountSid] = useState(() => {
     return localStorage.getItem('lisa_twilio_account_sid') || '';
   });
@@ -435,10 +412,6 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
   });
 
   // Synchronizers for localStorage states
-  useEffect(() => {
-    localStorage.setItem('lisa_is_twilio_mode', isTwilioMode ? 'true' : 'false');
-  }, [isTwilioMode]);
-
   useEffect(() => {
     localStorage.setItem('lisa_twilio_account_sid', twilioAccountSid);
   }, [twilioAccountSid]);
@@ -514,38 +487,6 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
   }, [avatarImage, agentRole]);
 
   useEffect(() => {
-    localStorage.setItem('lisa_channel_sub_tab', channelSubTab);
-  }, [channelSubTab]);
-
-  useEffect(() => {
-    localStorage.setItem('lisa_zoom_meet_url', zoomMeetUrl);
-  }, [zoomMeetUrl]);
-
-  useEffect(() => {
-    localStorage.setItem('lisa_zoom_meet_active', zoomMeetActive ? 'true' : 'false');
-  }, [zoomMeetActive]);
-
-  useEffect(() => {
-    localStorage.setItem('lisa_google_meet_url', googleMeetUrl);
-  }, [googleMeetUrl]);
-
-  useEffect(() => {
-    localStorage.setItem('lisa_google_meet_active', googleMeetActive ? 'true' : 'false');
-  }, [googleMeetActive]);
-
-  useEffect(() => {
-    localStorage.setItem('lisa_is_sandbox_zoom', isSandboxZoom ? 'true' : 'false');
-  }, [isSandboxZoom]);
-
-  useEffect(() => {
-    localStorage.setItem('lisa_zoom_meeting_id', zoomMeetingId);
-  }, [zoomMeetingId]);
-
-  useEffect(() => {
-    localStorage.setItem('lisa_zoom_passcode', zoomPasscode);
-  }, [zoomPasscode]);
-
-  useEffect(() => {
     localStorage.setItem('lisa_phone_number', phoneNumber);
   }, [phoneNumber]);
 
@@ -575,7 +516,7 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
   }, [phoneCallStatus]);
 
   // Navigation active tab for side column controls
-  const [activeTab, setActiveTab] = useState<'profile' | 'meet' | 'settings'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'phone' | 'settings'>('profile');
 
   const recorderRef = useRef<AudioRecorder | null>(null);
   const playerRef = useRef<AudioPlayer | null>(null);
@@ -583,47 +524,6 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
   const isManualClose = useRef(false);
 
 
-
-  const generateZoomSpace = () => {
-    setIsZoomProvisioning(true);
-    setZoomError(null);
-    
-    setTimeout(() => {
-      const meetId = Math.floor(100 + Math.random() * 900) + ' ' + 
-                     Math.floor(1000 + Math.random() * 9000) + ' ' + 
-                     Math.floor(1000 + Math.random() * 9000);
-      const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-      const mPwd = Array.from({length: 8}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-      
-      setZoomMeetingId(meetId);
-      setZoomPasscode(mPwd);
-      setZoomMeetUrl(`https://zoom.us/j/${meetId.replace(/\s+/g, '')}?pwd=${mPwd}`);
-      setZoomMeetActive(true);
-      setIsZoomProvisioning(false);
-    }, 1200);
-  };
-
-  const copyZoomLink = () => {
-    if (!zoomMeetUrl) return;
-    try {
-      navigator.clipboard.writeText(zoomMeetUrl);
-      setCopiedZoom(true);
-      setTimeout(() => setCopiedZoom(false), 2000);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const copyMeetLink = () => {
-    if (!googleMeetUrl) return;
-    try {
-      navigator.clipboard.writeText(googleMeetUrl);
-      setCopiedMeet(true);
-      setTimeout(() => setCopiedMeet(false), 2000);
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
   const startPhoneCall = async () => {
     if (!phoneNumber || phoneNumber.trim().length < 4) {
@@ -633,124 +533,91 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
     
     setPhoneLogs([]);
     setPhoneCallStatus('dialing');
+    setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🌎 Securing Twilio digital voice outbound...`]);
+    try {
+      const response = await fetch('/api/twilio/call', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          phoneNumber: phoneNumber.trim(),
+          twilioAccountSid: twilioAccountSid.trim() || undefined,
+          twilioAuthToken: twilioAuthToken.trim() || undefined,
+          twilioPhoneNumber: twilioPhoneNumber.trim() || undefined,
+          selectedVoice,
+          recruiterName,
+          candidateFirstName,
+          candidateLastName,
+          currentTitle,
+          currentCompany,
+          enterpriseCapability,
+          marketRelevance,
+          agentRole,
+          priorConversation,
+          agentBio,
+          clientInfo,
+        })
+      });
 
-    if (!isTwilioMode) {
-      setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🌎 Connecting VoIP SIP Trunk...`]);
-      setTimeout(() => {
-        setPhoneCallStatus('ringing');
-        setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🔔 Ringing station at ${phoneNumber}...`]);
-        
-        setTimeout(() => {
-          setPhoneCallStatus('connected');
-          setPhoneCallActive(true);
-          setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✅ Voice connection established.`]);
-          
-          if (!isActive) {
-            startSession();
-          }
-        }, 1500);
-      }, 1000);
-    } else {
-      setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🌎 Securing Twilio digital voice outbound...`]);
-      try {
-        const response = await fetch('/api/twilio/call', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            phoneNumber: phoneNumber.trim(),
-            twilioAccountSid: twilioAccountSid.trim() || undefined,
-            twilioAuthToken: twilioAuthToken.trim() || undefined,
-            twilioPhoneNumber: twilioPhoneNumber.trim() || undefined,
-
-            selectedVoice,
-            recruiterName,
-            candidateFirstName,
-            candidateLastName,
-            currentTitle,
-            currentCompany,
-            enterpriseCapability,
-            marketRelevance,
-            agentRole,
-            priorConversation,
-            agentBio,
-            clientInfo,
-            zoomMeetUrl,
-            zoomMeetActive,
-            googleMeetUrl,
-            googleMeetActive
-          })
-        });
-
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.error || 'Server rejected Twilio call triggering.');
-        }
-
-        const callSid = data.callSid;
-        setActiveCallSid(callSid);
-        dispatchCallStarted({ phoneNumber: phoneNumber.trim(), callSid, status: 'ringing', provider: 'twilio' });
-
-        setPhoneCallStatus('ringing');
-        setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🔔 Twilio triggered call! Call SID: ${callSid}`]);
-        setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🔔 Ringing destination number: ${phoneNumber}...`]);
-        
-        setTimeout(() => {
-          setPhoneCallStatus('connected');
-          setPhoneCallActive(true);
-          setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✅ Twilio Voice channel verified. Voice Agent is ready on call line.`]);
-        }, 3000);
-
-      } catch (err: any) {
-        console.error(err);
-        setPhoneCallStatus('disconnected');
-        setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ❌ Twilio Fail: ${err.message}`]);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Server rejected Twilio call triggering.');
       }
+
+      const callSid = data.callSid;
+      setActiveCallSid(callSid);
+      dispatchCallStarted({ phoneNumber: phoneNumber.trim(), callSid, status: 'ringing', provider: 'twilio' });
+
+      setPhoneCallStatus('ringing');
+      setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🔔 Twilio triggered call! Call SID: ${callSid}`]);
+      setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🔔 Ringing destination number: ${phoneNumber}...`]);
+      
+      setTimeout(() => {
+        setPhoneCallStatus('connected');
+        setPhoneCallActive(true);
+        setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✅ Twilio Voice channel verified. Voice Agent is ready on call line.`]);
+      }, 3000);
+
+    } catch (err: any) {
+      console.error(err);
+      setPhoneCallStatus('disconnected');
+      setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ❌ Twilio Fail: ${err.message}`]);
     }
   };
 
   const endPhoneCall = async () => {
     setPhoneCallStatus('disconnected');
     setPhoneCallActive(false);
+    setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🛑 Requesting Twilio Call termination...`]);
+    try {
+      if (activeCallSid) {
+        const response = await fetch('/api/twilio/hangup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            callSid: activeCallSid,
+            twilioAccountSid: twilioAccountSid.trim() || undefined,
+            twilioAuthToken: twilioAuthToken.trim() || undefined
+          })
+        });
 
-    if (!isTwilioMode) {
-      setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🛑 Call terminated by user.`]);
-      if (isActive) {
-        isManualClose.current = true;
-        stopSession();
-      }
-    } else {
-      setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🛑 Requesting Twilio Call termination...`]);
-      try {
-        if (activeCallSid) {
-          const response = await fetch('/api/twilio/hangup', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              callSid: activeCallSid,
-              twilioAccountSid: twilioAccountSid.trim() || undefined,
-              twilioAuthToken: twilioAuthToken.trim() || undefined
-            })
-          });
-
-          if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || 'Hangup failed.');
-          }
-
-          setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✅ Twilio session successfully completed & closed.`]);
-        } else {
-          setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🛑 Offline close completed.`]);
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Hangup failed.');
         }
-      } catch (err: any) {
-        console.error(err);
-        setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ⚠️ Server-side disconnect error: ${err.message}`]);
-      } finally {
-        setActiveCallSid(null);
+
+        setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✅ Twilio session successfully completed & closed.`]);
+      } else {
+        setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] 🛑 Call closed.`]);
       }
+    } catch (err: any) {
+      console.error(err);
+      setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ⚠️ Server-side disconnect error: ${err.message}`]);
+    } finally {
+      setActiveCallSid(null);
     }
   };
 
@@ -785,203 +652,11 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
     sessionLogsRef.current = currentSessionLogs;
   }, [currentSessionLogs]);
 
-  const generateOfflineResponse = (userInput: string): string => {
-    const normInput = userInput.toLowerCase();
-    
-    // General fallback replies
-    const recruiterReplies = [
-      `That is highly interesting, ${candidateFirstName}. Tell me more about your experience managing custom modernization pipelines or working with high-growth teams.`,
-      `Excellent. We are looking for someone with strong enterprise capabilities. How do you handle timelines and direct team alignments?`,
-      `I completely understand. In your prior roles under this scope, what was the most complex technical hurdle you resolved?`,
-      `That makes a lot of sense. What are your core compensation expectations and your transition timeline?`,
-      `Wonderful sharing. I will relay these direct insights to our hiring champion. What is the best standard slot for our follow-up calendar session?`
-    ];
-
-    const devReplies = [
-      `That makes total sense! A modern website refresh is a game changer. How is your current web platform performing for your business right now?`,
-      `I see where you're coming from. We build ultra-speed, mobile-responsive web apps designed specifically to maximize sales. Have you been scheduling a refresh?`,
-      `Interesting! Our conversion framework usually boosts inbound user inquiries by forty percent. Let's schedule a short demo next week, how does that sound?`,
-      `Absolutely. We completely handle the coding, custom UI, assets, and speed optimization so you can focus entirely on scaling your company.`
-    ];
-
-    const automationReplies = [
-      `Precisely! Manual workflows are the silent killer of productivity. What would you say is the most repetitive task your team does daily?`,
-      `Got it. Our automated triggers can sync your details across calendars, emails, and database sheets instantly on autopilot.`,
-      `Understood! Imagine saving over twenty hours of manual data inputs every single week. We should review a custom flow diagram.`
-    ];
-
-    const designerReplies = [
-      `Wow, visual identity is so crucial for high-ticket brand positioning. Do you feel your current logos and branding match your core premium value?`,
-      `Exactly! Consistent guidelines across your socials and interface can instantly double your customer's brand trust.`,
-      `I love that approach. We can sketch up a fresh, cohesive design deck sample for your team to check. Shall we connect on this?`
-    ];
-
-    const appReplies = [
-      `Mobile apps put your brand directly in your customer's pocket! Are you looking for a customer-facing utility or a standard team management platform?`,
-      `Fantastic logic! Developing a custom native-feeling app creates extreme stickiness and streamlines reservation loops.`,
-      `We specialize in fast, secure cross-platform frameworks. What is your ideal timeframe for turning this idea into a launching beta?`
-    ];
-
-    const customReplies = [
-      `Interesting perspective. As your high-intelligence companion, I am analyzing your input: "${userInput}". How would you like us to optimize this project?`,
-      `Insightful point! Let's explore this avenue further. What is our core priority in this custom setup?`,
-      `I am actively tracking this. Let's integrate these parameters into our next planning framework.`
-    ];
-
-    let pool = recruiterReplies;
-    const rKey = agentRole === 'Custom Role...' ? 'Custom Role...' : agentRole;
-    if (rKey === 'Website Developer') pool = devReplies;
-    else if (rKey === 'Automation Expert') pool = automationReplies;
-    else if (rKey === 'Graphic Designer') pool = designerReplies;
-    else if (rKey === 'App Developer') pool = appReplies;
-    else if (rKey === 'Custom Role...') pool = customReplies;
-
-    const randomIndex = Math.floor(Math.random() * pool.length);
-    let reply = pool[randomIndex];
-
-    if (normInput.includes('hello') || normInput.includes('hi') || normInput.includes('hey')) {
-      reply = `Hello ${candidateFirstName}! This is ${recruiterName}, speaking as your ${agentRole === 'Custom Role...' ? customRoleText || 'AI companion' : agentRole}. I am running in fully offline direct backup mode. It is fantastic to talk to you! What shall we discuss today?`;
-    } else if (normInput.includes('are you an ai') || normInput.includes('are you a robot') || normInput.includes('are you real') || normInput.includes('voice')) {
-      reply = `Haha, oh gosh, no! I get that sometimes because of my VoIP headset, but I'm definitely a real human. Although honestly, having a robot do my chores does sound kind of nice!`;
-    } else if (normInput.includes('bye') || normInput.includes('goodbye') || normInput.includes('thank you')) {
-      reply = `Thank you so much, ${candidateFirstName}. It was an absolute pleasure connecting offline. Let's touch base again soon! Have an amazing day.`;
-    }
-
-    return reply;
-  };
-
-  const speakOffline = (text: string, onDone: () => void) => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) {
-      onDone();
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Find beautiful local English voice
-    const voices = window.speechSynthesis.getVoices();
-    const englishVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Daniel') || v.name.includes('Karen')));
-    if (englishVoice) {
-      utterance.voice = englishVoice;
-    }
-    
-    utterance.onstart = () => {
-      setStatus('speaking');
-    };
-    
-    utterance.onend = () => {
-      setStatus('listening');
-      onDone();
-    };
-    
-    utterance.onerror = (err) => {
-      console.warn("Offline synthesis warnings:", err);
-      setStatus('listening');
-      onDone();
-    };
-
-    // Draw decibel feedback peaks for waveform
-    const interval = setInterval(() => {
-      if (window.speechSynthesis.speaking) {
-        setLisaVolume(Math.random() * 0.4 + 0.1);
-      } else {
-        clearInterval(interval);
-        setLisaVolume(0);
-      }
-    }, 150);
-
-    window.speechSynthesis.speak(utterance);
-  };
-
   const startSession = async () => {
     try {
       isManualClose.current = false;
       setStatus('connecting');
       setError(null);
-
-      // Model C: Offline Browser Mode Simulator
-      if (modelEngine === 'local') {
-        setStatus('listening');
-        setCurrentSessionLogs([]);
-        currentModelSentenceRef.current = '';
-        setIsActive(true);
-        dispatchSessionStart({ modelEngine: 'local', agentRole, recruiterName });
-
-        const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (SpeechRecognitionClass) {
-          try {
-            const recConnection = new SpeechRecognitionClass();
-            recConnection.continuous = true;
-            recConnection.interimResults = false;
-            recConnection.lang = 'en-US';
-            recConnection.onresult = (eEvent: any) => {
-              const resText = eEvent.results[eEvent.results.length - 1][0].transcript;
-              if (resText && resText.trim()) {
-                const timeSt = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                const turnLog = {
-                  sender: 'Client',
-                  text: resText.trim(),
-                  timestamp: timeSt
-                };
-                
-                setCurrentSessionLogs(p => {
-                  const updated = [...p, turnLog];
-                  appendTurnToPriorConversation(turnLog);
-                  return updated;
-                });
-
-                // Generate and speak response offline
-                const offlineResp = generateOfflineResponse(resText.trim());
-                setStatus('speaking');
-                
-                try {
-                  recConnection.onend = null;
-                  recConnection.stop();
-                } catch (_) {}
-
-                speakOffline(offlineResp, () => {
-                  const botTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                  const botTurn = {
-                    sender: recruiterName,
-                    text: offlineResp,
-                    timestamp: botTime
-                  };
-                  setCurrentSessionLogs(p => {
-                    const updated = [...p, botTurn];
-                    appendTurnToPriorConversation(botTurn);
-                    return updated;
-                  });
-
-                  setStatus('listening');
-                  if (isActiveRef.current) {
-                    try {
-                      recConnection.onend = () => {
-                        if (isActiveRef.current) {
-                          try { recConnection.start(); } catch (_) {}
-                        }
-                      };
-                      recConnection.start();
-                    } catch (_) {}
-                  }
-                });
-              }
-            };
-
-            recConnection.onend = () => {
-              if (isActiveRef.current) {
-                try { recConnection.start(); } catch (_) {}
-              }
-            };
-            recConnection.start();
-            recognitionRef.current = recConnection;
-          } catch (rErr) {
-            console.error("Local SpeechRecognition block issue:", rErr);
-          }
-        } else {
-          setError("This browser lacks Speech Recognition support. Please use Google Chrome, Apple premium Safari, or Microsoft Edge for local offline speech triggers.");
-        }
-        return;
-      }
 
       playerRef.current = new AudioPlayer((vol) => {
         setLisaVolume(vol);
@@ -1071,10 +746,6 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
           priorConversation,
           agentBio,
           clientInfo,
-          zoomMeetUrl,
-          zoomMeetActive,
-          googleMeetUrl,
-          googleMeetActive,
           phoneNumber,
           phoneCallActive
         }));
@@ -1586,16 +1257,16 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
               CLIENT
             </button>
             <button 
-              onClick={() => setActiveTab('meet')}
+              onClick={() => setActiveTab('phone')}
               className={`flex-[1.4] flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer
-                ${activeTab === 'meet' 
+                ${activeTab === 'phone' 
                   ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/10 shadow-sm' 
                   : 'text-slate-400 hover:text-white'
                 }
               `}
             >
-              <Video size={11} className="text-cyan-500 animate-pulse" />
-              Channels
+              <Phone size={11} className="text-indigo-400" />
+              Phone
             </button>
             <button 
               onClick={() => setActiveTab('settings')}
@@ -1667,489 +1338,127 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
               </motion.div>
             )}
 
-            {activeTab === 'meet' && (
+            {activeTab === 'phone' && (
               <motion.div 
-                key="meet"
+                key="phone"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="flex-1 flex flex-col gap-4 bg-slate-900/40 p-5 rounded-2xl border border-white/5"
+                className="flex-1 flex flex-col bg-[#0a0a0a] rounded-2xl border border-white/5 overflow-hidden"
               >
-                {/* Channels header */}
-                <div className="flex justify-between items-center border-b border-white/5 pb-2 shrink-0">
-                  <h3 className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-black flex items-center gap-2">
-                    <Video size={12} className="text-cyan-500 animate-pulse" /> Direct Channels
-                  </h3>
-                  <span className="text-[9px] bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded uppercase font-bold tracking-wider">Lisa Outlets</span>
-                </div>
-
-                {/* Sub-tab selection pill */}
-                <div className="grid grid-cols-3 bg-slate-950 p-1 rounded-xl border border-white/5 shrink-0">
-                  <button
-                    onClick={() => setChannelSubTab('zoom')}
-                    className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer
-                      ${channelSubTab === 'zoom'
-                        ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/10'
-                        : 'text-slate-500 hover:text-slate-300'
-                      }
-                    `}
-                  >
-                    Zoom
-                  </button>
-                  <button
-                    onClick={() => setChannelSubTab('meet')}
-                    className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer
-                      ${channelSubTab === 'meet'
-                        ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/10'
-                        : 'text-slate-500 hover:text-slate-300'
-                      }
-                    `}
-                  >
-                    Google Meet
-                  </button>
-                  <button
-                    onClick={() => setChannelSubTab('phone')}
-                    className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer
-                      ${channelSubTab === 'phone'
-                        ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/10'
-                        : 'text-slate-500 hover:text-slate-300'
-                      }
-                    `}
-                  >
-                    Dialer
-                  </button>
-                </div>
-
-                <div className="flex-1 flex flex-col gap-4 overflow-y-auto max-h-[460px] pr-1 text-left">
-                  {/* --- ZOOM MEETING SUB-TAB --- */}
-                  {channelSubTab === 'zoom' && (
-                    <div className="space-y-4">
-                      {/* Mode select: sandbox vs manual */}
-                      <div className="p-3 bg-slate-950/40 border border-white/5 rounded-xl space-y-2.5 shrink-0">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Zoom Mode selection</span>
-                          <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded ${isSandboxZoom ? 'bg-amber-500/10 text-amber-400' : 'bg-indigo-500/10 text-indigo-400'}`}>
-                            {isSandboxZoom ? 'SANDBOX ON' : 'MANUAL INJECT'}
-                          </span>
-                        </div>
-                        
-                        <div className="flex bg-slate-900 rounded-lg p-1 border border-white/5">
-                          <button
-                            onClick={() => { setIsSandboxZoom(true); }}
-                            className={`flex-1 text-[9px] font-black uppercase py-1.5 rounded-md cursor-pointer transition-all ${isSandboxZoom ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/20' : 'text-slate-500 hover:text-slate-300'}`}
-                          >
-                            Sandbox
-                          </button>
-                          <button
-                            onClick={() => { setIsSandboxZoom(false); }}
-                            className={`flex-1 text-[9px] font-black uppercase py-1.5 rounded-md cursor-pointer transition-all ${!isSandboxZoom ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/20' : 'text-slate-500 hover:text-slate-300'}`}
-                          >
-                            Manual URL
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Manual Input block */}
-                      {!isSandboxZoom ? (
-                        <div className="space-y-3 p-3 bg-slate-950/40 border border-white/5 rounded-xl text-left">
-                          <div className="space-y-1">
-                            <label className="text-[9px] text-slate-500 uppercase font-black tracking-wider">Manual Zoom Join Link</label>
-                            <input 
-                              type="text" 
-                              value={zoomMeetUrl} 
-                              onChange={(e) => {
-                                setZoomMeetUrl(e.target.value);
-                                if (e.target.value) setZoomMeetActive(true);
-                              }}
-                              placeholder="e.g. https://zoom.us/j/123456789?pwd=..."
-                              className="w-full bg-slate-850 border border-white/5 rounded-lg p-2 text-xs font-mono text-slate-300 focus:border-cyan-500/40 focus:outline-none focus:bg-slate-800"
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1">
-                              <label className="text-[8px] text-slate-500 uppercase font-black tracking-wider">Meeting ID</label>
-                              <input 
-                                type="text" 
-                                value={zoomMeetingId} 
-                                onChange={(e) => setZoomMeetingId(e.target.value)}
-                                className="w-full bg-slate-850 border border-white/5 rounded-lg p-1.5 text-xs font-mono text-slate-300"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[8px] text-slate-500 uppercase font-black tracking-wider">Passcode</label>
-                              <input 
-                                type="text" 
-                                value={zoomPasscode} 
-                                onChange={(e) => setZoomPasscode(e.target.value)}
-                                className="w-full bg-slate-850 border border-white/5 rounded-lg p-1.5 text-xs font-mono text-slate-300"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="p-3.5 bg-slate-900/60 border border-cyan-500/10 rounded-xl space-y-2 shrink-0">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[9px] text-cyan-400 font-black uppercase tracking-widest">Zoom Generator</span>
-                            <Video size={13} className="text-cyan-500" />
-                          </div>
-                          
-                          <button
-                            onClick={generateZoomSpace}
-                            disabled={isZoomProvisioning}
-                            className="w-full h-9 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-slate-950 font-black text-[9px] uppercase tracking-[0.15em] rounded-lg cursor-pointer transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-40"
-                          >
-                            {isZoomProvisioning ? (
-                              <>
-                                <div className="w-3 h-3 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
-                                <span>Generating Zoom Invite...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles size={11} className="text-slate-150 animate-pulse" />
-                                <span>Deploy Zoom Meeting Space</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Created Zoom Coordinates details */}
-                      {zoomMeetUrl && (
-                        <div className="space-y-2 shrink-0">
-                          <label className="text-[9px] text-slate-500 font-bold uppercase tracking-widest block font-mono">Active Zoom Invite Link</label>
-                          <div className="bg-[#10141D] rounded-xl border border-white/5 p-3 space-y-2">
-                            <p className="text-[10px] font-mono font-bold text-center text-cyan-300 bg-cyan-950/30 border border-cyan-500/10 px-2 py-1 rounded-lg select-all truncate">
-                              {zoomMeetUrl}
-                            </p>
-                            <div className="grid grid-cols-2 gap-2 text-[9px] font-mono text-slate-400 p-1.5 bg-slate-950/40 rounded-lg border border-white/5">
-                              <div>
-                                <span className="block text-[7px] text-slate-500 font-black uppercase">ID</span>
-                                <span className="font-bold text-slate-300">{zoomMeetingId}</span>
-                              </div>
-                              <div>
-                                <span className="block text-[7px] text-slate-500 font-black uppercase">PASSCODE</span>
-                                <span className="font-bold text-slate-300">{zoomPasscode}</span>
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 pt-1">
-                              <button
-                                onClick={copyZoomLink}
-                                className="flex items-center justify-center gap-1.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[9px] font-black uppercase rounded-lg border border-white/5 cursor-pointer"
-                              >
-                                <Copy size={11} />
-                                {copiedZoom ? 'Copied!' : 'Copy invite'}
-                              </button>
-                              <a
-                                href={zoomMeetUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center justify-center gap-1.5 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-[9px] font-black uppercase rounded-lg border border-cyan-500/20 cursor-pointer"
-                              >
-                                <ExternalLink size={11} />
-                                Join Meet
-                              </a>
-                            </div>
-                          </div>
-
-                          {/* Link to Lisa Toggle */}
-                          <div className="p-3 bg-slate-800/40 border border-white/5 rounded-xl flex items-center justify-between">
-                            <div>
-                              <p className="text-[9.5px] text-slate-300 font-bold leading-tight">Link Zoom to Lisa</p>
-                              <p className="text-[8px] text-slate-500">Injects Zoom invites into Lisa context</p>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={zoomMeetActive}
-                              onChange={(e) => setZoomMeetActive(e.target.checked)}
-                              className="w-4 h-4 rounded accent-cyan-500 bg-slate-800 border-white/10 cursor-pointer"
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Interactive Guide */}
-                      <div className="p-3 bg-[#0F131A] border border-white/5 rounded-xl space-y-1.5 text-[10px] text-slate-400">
-                        <p className="text-[9px] text-slate-300 font-black uppercase tracking-widest flex items-center gap-1">
-                          <Calendar size={11} className="text-cyan-500" /> Zoom Companion steps
-                        </p>
-                        <p className="leading-relaxed text-[9px]">
-                          Join the meeting on your client. Keep this browser session active on your screen. Lisa acts as a companion sidecar, processing microphone audio live.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* --- GOOGLE MEET SUB-TAB --- */}
-                  {channelSubTab === 'meet' && (
-                    <div className="space-y-4 text-left">
-                      <div className="space-y-3 p-3 bg-slate-950/40 border border-white/5 rounded-xl text-left">
-                        <div className="space-y-1">
-                          <label className="text-[9px] text-slate-500 uppercase font-black tracking-wider">Paste External Google Meet Link</label>
-                          <input 
-                            type="text" 
-                            value={googleMeetUrl} 
-                            onChange={(e) => {
-                              setGoogleMeetUrl(e.target.value);
-                              if (e.target.value) setGoogleMeetActive(true);
-                            }}
-                            placeholder="e.g. https://meet.google.com/abc-defg-hij"
-                            className="w-full bg-slate-850 border border-white/5 rounded-lg p-2 text-xs font-mono text-slate-300 focus:border-cyan-500/40 focus:outline-none focus:bg-slate-800"
-                          />
-                        </div>
-                      </div>
-
-                      {googleMeetUrl && (
-                        <div className="space-y-2 shrink-0 text-left">
-                          <label className="text-[9px] text-slate-500 font-bold uppercase tracking-widest block font-mono">Active Google Meet Link</label>
-                          <div className="bg-[#10141D] rounded-xl border border-white/5 p-3 space-y-2">
-                            <p className="text-[10px] font-mono font-bold text-center text-cyan-300 bg-cyan-950/30 border border-cyan-500/10 px-2 py-1 rounded-lg select-all truncate">
-                              {googleMeetUrl}
-                            </p>
-                            <div className="grid grid-cols-2 gap-2 pt-1">
-                              <button
-                                onClick={copyMeetLink}
-                                className="flex items-center justify-center gap-1.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[9px] font-black uppercase rounded-lg border border-white/5 cursor-pointer"
-                              >
-                                <Copy size={11} />
-                                {copiedMeet ? 'Copied!' : 'Copy link'}
-                              </button>
-                              <a
-                                href={googleMeetUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center justify-center gap-1.5 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-[9px] font-black uppercase rounded-lg border border-cyan-500/20 cursor-pointer"
-                              >
-                                <ExternalLink size={11} />
-                                Join Meet
-                              </a>
-                            </div>
-                          </div>
-
-                          {/* Link to Lisa Toggle */}
-                          <div className="p-3 bg-slate-800/40 border border-white/5 rounded-xl flex items-center justify-between">
-                            <div>
-                              <p className="text-[9.5px] text-slate-300 font-bold leading-tight">Link Meet to Lisa</p>
-                              <p className="text-[8px] text-slate-500">Injects Google Meet details into Lisa context</p>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={googleMeetActive}
-                              onChange={(e) => setGoogleMeetActive(e.target.checked)}
-                              className="w-4 h-4 rounded accent-cyan-500 bg-slate-800 border-white/10 cursor-pointer"
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Interactive Guide */}
-                      <div className="p-3 bg-[#0F131A] border border-white/5 rounded-xl space-y-1.5 text-[10px] text-slate-400 text-left">
-                        <p className="text-[9px] text-slate-300 font-black uppercase tracking-widest flex items-center gap-1">
-                          <Calendar size={11} className="text-cyan-500" /> Google Meet Steps
-                        </p>
-                        <p className="leading-relaxed text-[9px]">
-                          1. Create a Google Meet link outside the app.<br />
-                          2. Paste the link into the field above.<br />
-                          3. Enable "Link Meet to Lisa" so she knows she is in your Google Meet.<br />
-                          4. Click "Join Meet" to jump directly into the room on your browser.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* --- DIRECT TELEPHONE DIALER SUB-TAB --- */}
-                  {channelSubTab === 'phone' && (
-                    <div className="space-y-4">
-                      {/* Telephony Mode Selector */}
-                      <div className="p-3 bg-slate-950/40 border border-white/5 rounded-xl space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Telephony Carrier Channel</span>
-                          <span className="text-[9px] font-mono font-bold text-cyan-400 bg-cyan-950/40 border border-cyan-800/20 px-1.5 py-0.5 rounded uppercase">
-                            {isTwilioMode ? 'Twilio Live' : 'Sandbox Demo'}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setIsTwilioMode(false)}
-                            className={`py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer border ${!isTwilioMode ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' : 'bg-slate-900 border-white/5 text-slate-500 hover:text-slate-300'}`}
-                          >
-                            Sandbox Demo
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setIsTwilioMode(true)}
-                            className={`py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer border ${isTwilioMode ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-slate-900 border-white/5 text-slate-500 hover:text-slate-300'}`}
-                          >
-                            Twilio Carrier
-                          </button>
-                        </div>
-
-                        {/* Twilio Credentials sub-form if in Twilio mode */}
-                        {isTwilioMode && (
-                          <div className="space-y-2 pt-2 border-t border-white/5 transition-all text-left">
-                            <span className="block text-[8px] text-indigo-400 font-black tracking-widest uppercase">Twilio Trunk Credentials</span>
-                            
-                            <div className="space-y-1">
-                              <label className="block text-[8px] text-slate-500 font-bold uppercase">Account SID</label>
-                              <input
-                                type="text"
-                                placeholder="AC..."
-                                value={twilioAccountSid}
-                                onChange={(e) => setTwilioAccountSid(e.target.value)}
-                                className="w-full bg-slate-950/80 border border-white/10 rounded px-2 py-1 text-[10px] text-slate-300 font-mono focus:outline-none focus:border-indigo-500/50"
-                              />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="space-y-1">
-                                <label className="block text-[8px] text-slate-500 font-bold uppercase">Auth Token</label>
-                                <input
-                                  type="password"
-                                  placeholder="••••••••"
-                                  value={twilioAuthToken}
-                                  onChange={(e) => setTwilioAuthToken(e.target.value)}
-                                  className="w-full bg-slate-950/80 border border-white/10 rounded px-2 py-1 text-[10px] text-slate-300 font-mono focus:outline-none focus:border-indigo-500/50"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="block text-[8px] text-slate-500 font-bold uppercase">Caller Number</label>
-                                <input
-                                  type="text"
-                                  placeholder="+1..."
-                                  value={twilioPhoneNumber}
-                                  onChange={(e) => setTwilioPhoneNumber(e.target.value)}
-                                  className="w-full bg-slate-950/80 border border-white/10 rounded px-2 py-1 text-[10px] text-slate-300 font-mono focus:outline-none focus:border-indigo-500/50"
-                                />
-                              </div>
-                            </div>
-                            
-                            <p className="text-[7.5px] text-slate-500 italic mt-1 leading-normal">
-                              Note: If left blank, server defaults to `.env` variables (`TWILIO_ACCOUNT_SID`, etc.).
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Active Trunk Terminal Info */}
-                      <div className="p-3 bg-slate-950/60 border border-white/5 rounded-xl space-y-2 shrink-0">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">SIP Carrier trunk</span>
-                          <div className="flex items-center gap-1.5">
-                            <span className={`w-2 h-2 rounded-full ${phoneCallStatus === 'connected' ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.7)]' : phoneCallStatus === 'dialing' || phoneCallStatus === 'ringing' ? 'bg-amber-400 animate-bounce' : 'bg-slate-600'}`}></span>
-                            <span className="text-[9px] font-mono uppercase font-bold text-slate-300">
-                              {phoneCallStatus} {phoneCallStatus === 'connected' && `[${Math.floor(phoneCallDuration / 60)}:${String(phoneCallDuration % 60).padStart(2, '0')}]`}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Interactive digital dialed viewport */}
-                        <div className="bg-slate-900 border border-white/5 rounded-lg p-3 text-center">
-                          <span className="block text-[8px] text-slate-500 font-black tracking-widest uppercase mb-1">TRUNK STATION OUTLET</span>
-                          <span className="text-sm font-mono font-bold text-cyan-400 tracking-wider">
-                            {phoneNumber || 'ENTER PHONE NUMBER'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Interactive dial pad keycaps */}
-                      {phoneCallStatus === 'disconnected' && (
-                        <div className="p-3.5 bg-slate-950/40 rounded-xl border border-white/5 space-y-2 shrink-0">
-                          <div className="grid grid-cols-3 gap-2">
-                            {['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map((btn) => (
-                              <button
-                                key={btn}
-                                onClick={() => handleKeypadPress(btn)}
-                                className="h-10 rounded-lg bg-slate-900 hover:bg-slate-800 border border-white/5 text-xs font-mono font-bold text-slate-300 hover:text-white flex items-center justify-center cursor-pointer transition-all"
-                              >
-                                {btn}
-                              </button>
-                            ))}
-                          </div>
-                          
-                          <button
-                            onClick={handleKeypadBackspace}
-                            className="w-full py-1.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-400 text-[9px] font-black uppercase tracking-wider rounded-lg border border-white/5 cursor-pointer transition-colors"
-                          >
-                            Backspace
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Action trigger: Dial Call / Hangup */}
-                      <div className="space-y-3">
-                        {phoneCallStatus === 'disconnected' ? (
-                          <button
-                            onClick={startPhoneCall}
-                            disabled={!phoneNumber || phoneNumber.trim().length < 4}
-                            className="w-full h-10 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-slate-950 font-black text-[9px] uppercase tracking-[0.15em] rounded-lg cursor-pointer transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-40"
-                          >
-                            <Phone className="text-slate-950 animate-pulse" size={12} />
-                            <span>Dial Phone Directly</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={endPhoneCall}
-                            className="w-full h-10 bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white font-black text-[9px] uppercase tracking-[0.15em] rounded-lg cursor-pointer transition-all flex items-center justify-center gap-2 shadow-lg"
-                          >
-                            <PhoneOff className="text-white animate-spin" size={12} />
-                            <span>Terminate Telephone Call</span>
-                          </button>
-                        )}
-                        
-                        {/* Link Phone Voice to Lisa switch */}
-                        <div className="p-3 bg-slate-800/40 border border-white/5 rounded-xl flex items-center justify-between text-left">
-                          <div>
-                            <p className="text-[9.5px] text-slate-300 font-bold leading-tight">Link Phone Line to Lisa</p>
-                            <p className="text-[8px] text-slate-500">Injects custom telephone telephony attributes</p>
-                          </div>
-                          <input
-                            type="checkbox"
-                            checked={phoneCallActive}
-                            onChange={(e) => setPhoneCallActive(e.target.checked)}
-                            className="w-4 h-4 rounded accent-cyan-500 bg-slate-800 border-white/10 cursor-pointer"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Live Call Telephony Logs */}
-                      {phoneLogs.length > 0 && (
-                        <div className="p-3 bg-black/60 rounded-xl border border-white/5 space-y-1 font-mono text-[8.5px] text-slate-400 shrink-0 text-left">
-                          <span className="block text-[7px] text-slate-500 font-black uppercase tracking-wider border-b border-white/5 pb-1 mb-1.5">TELEPHONY CARRIER DIALOGS</span>
-                          <div className="space-y-1 max-h-[100px] overflow-y-auto pr-1">
-                            {phoneLogs.map((log, idx) => (
-                              <p key={idx} className={log.includes('❌') ? 'text-rose-400' : log.includes('✅') ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
-                                {log}
-                              </p>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Interactive Guide */}
-                      <div className="p-3 bg-[#0F131A] border border-white/5 rounded-xl space-y-2 text-[10px] text-slate-400">
-                        <p className="text-[9px] text-slate-300 font-black uppercase tracking-widest flex items-center gap-1">
-                          <Terminal size={11} className="text-cyan-500" /> Interactive Dialer Instruction
-                        </p>
-                        <p className="leading-relaxed text-[9px]">
-                          Dialing immediately engages the SIP proxy trunk line. Lisa connects, handles active microphone streams, and answers back directly through this interface as a standard telephone call!
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Status bottom lock display */}
-                {isActive ? (
-                  <div className="p-3 bg-cyan-950/40 border border-cyan-800/40 rounded-xl mt-auto shrink-0 text-left">
-                    <p className="text-[8px] text-cyan-400 font-black uppercase tracking-widest">Active Broadcasting Stream</p>
-                    <p className="text-[10px] text-slate-400 leading-normal mt-1">
-                      Locked. Stop the session thread to adjust carrier parameters, coordinates, or sub-tab modes.
+                <div className="flex-1 flex flex-col items-center justify-between py-4 px-3 min-h-0">
+                  {/* Number display — iPhone style */}
+                  <div className="flex flex-col items-center justify-center flex-1 w-full min-h-[88px] px-2 text-center">
+                    <p className={`font-light tracking-wide tabular-nums leading-none transition-all ${phoneNumber ? 'text-[26px] text-white' : 'text-[15px] text-zinc-500'}`}>
+                      {phoneNumber || 'Enter number'}
                     </p>
+                    {phoneCallStatus !== 'disconnected' && (
+                      <p className="text-[13px] text-emerald-400 mt-2 font-medium capitalize">
+                        {phoneCallStatus === 'connected'
+                          ? `${Math.floor(phoneCallDuration / 60)}:${String(phoneCallDuration % 60).padStart(2, '0')}`
+                          : phoneCallStatus === 'dialing'
+                            ? 'Calling…'
+                            : 'Ringing…'}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Keypad */}
+                  {phoneCallStatus === 'disconnected' && (
+                    <div className="grid grid-cols-3 gap-x-5 gap-y-2.5 mb-2 shrink-0">
+                      {IPHONE_DIAL_KEYS.map(({ digit, letters }) => (
+                        <button
+                          key={digit}
+                          type="button"
+                          onClick={() => handleKeypadPress(digit)}
+                          className="w-[58px] h-[58px] rounded-full bg-[#333333] hover:bg-[#3d3d3d] active:bg-[#484848] flex flex-col items-center justify-center cursor-pointer transition-colors mx-auto"
+                        >
+                          <span className="text-[26px] font-light text-white leading-none">{digit}</span>
+                          {letters && (
+                            <span className="text-[9px] font-semibold tracking-[0.2em] text-white/90 leading-none mt-0.5">
+                              {letters}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Call / hang up row */}
+                  <div className="flex items-center justify-center gap-10 h-[72px] shrink-0">
+                    {phoneCallStatus === 'disconnected' ? (
+                      <>
+                        <div className="w-[58px]" aria-hidden />
+                        <button
+                          type="button"
+                          onClick={startPhoneCall}
+                          disabled={!phoneNumber || phoneNumber.trim().length < 4}
+                          className="w-[58px] h-[58px] rounded-full bg-[#34c759] hover:bg-[#2db84d] active:bg-[#28a745] disabled:opacity-35 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer transition-colors shadow-lg shadow-emerald-900/30"
+                          aria-label="Call"
+                        >
+                          <Phone size={26} className="text-white fill-white" strokeWidth={0} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleKeypadBackspace}
+                          disabled={!phoneNumber}
+                          className="w-[58px] h-[58px] rounded-full flex items-center justify-center cursor-pointer disabled:opacity-0 disabled:pointer-events-none transition-opacity"
+                          aria-label="Delete"
+                        >
+                          <Delete size={22} className="text-zinc-400" />
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={endPhoneCall}
+                        className="w-[58px] h-[58px] rounded-full bg-[#ff3b30] hover:bg-[#e6352b] active:bg-[#cc2f26] flex items-center justify-center cursor-pointer transition-colors shadow-lg shadow-rose-900/30"
+                        aria-label="End call"
+                      >
+                        <PhoneOff size={26} className="text-white" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Link to Lisa */}
+                  <div className="w-full px-1 pt-2 border-t border-white/5 shrink-0">
+                    <label className="flex items-center justify-between gap-3 cursor-pointer py-2">
+                      <div className="text-left min-w-0">
+                        <p className="text-[11px] text-zinc-300 font-medium">Link call to Lisa</p>
+                        <p className="text-[10px] text-zinc-500 leading-snug mt-0.5">
+                          Tells Lisa she is on a live phone call so she can mention the number and speak like a phone agent.
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={phoneCallActive}
+                        onChange={(e) => setPhoneCallActive(e.target.checked)}
+                        className="w-4 h-4 shrink-0 rounded accent-[#34c759] bg-zinc-800 border-white/10 cursor-pointer"
+                      />
+                    </label>
+                  </div>
+
+                  {phoneLogs.length > 0 && (
+                    <div className="w-full px-1 pt-1 max-h-[72px] overflow-y-auto shrink-0">
+                      {phoneLogs.slice(-4).map((log, idx) => (
+                        <p
+                          key={idx}
+                          className={`text-[9px] font-mono leading-relaxed ${log.includes('❌') ? 'text-rose-400' : log.includes('✅') ? 'text-emerald-400' : 'text-zinc-500'}`}
+                        >
+                          {log}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {isActive ? (
+                  <div className="px-4 py-2.5 bg-cyan-950/50 border-t border-cyan-800/30 shrink-0 text-center">
+                    <p className="text-[10px] text-cyan-400/90">Stop the voice session to place calls.</p>
                   </div>
                 ) : (
-                  <div className="p-3 bg-slate-800/40 border border-white/5 rounded-xl mt-auto shrink-0 flex items-center gap-2 text-left">
-                    <CheckCircle size={14} className="text-emerald-400" />
-                    <p className="text-[10px] text-slate-400 font-medium font-sans">Ready to broadcast channels to Lisa.</p>
+                  <div className="px-4 py-2.5 bg-zinc-900/80 border-t border-white/5 shrink-0 text-center">
+                    <p className="text-[10px] text-zinc-500">Ready to call via Twilio</p>
                   </div>
                 )}
               </motion.div>
@@ -2172,7 +1481,7 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
                   {/* Model Engine Selector */}
                   <div className="space-y-2 shrink-0 border-b border-white/5 pb-4 text-left">
                     <label className="text-[9px] text-slate-400 font-bold uppercase tracking-widest block">Voice Model Engine</label>
-                    <div className="grid grid-cols-3 bg-slate-950 p-1 rounded-xl border border-white/5">
+                    <div className="grid grid-cols-2 bg-slate-950 p-1 rounded-xl border border-white/5">
                       <button
                         type="button"
                         onClick={() => setModelEngine('gemini')}
@@ -2188,14 +1497,6 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
                         className={`py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer border ${modelEngine === 'elevenlabs' ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/10' : 'text-slate-500 border-transparent hover:text-slate-300 disabled:opacity-40'}`}
                       >
                         Model B (11Labs)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setModelEngine('local')}
-                        disabled={isActive}
-                        className={`py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer border ${modelEngine === 'local' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/10' : 'text-slate-500 border-transparent hover:text-slate-300 disabled:opacity-40'}`}
-                      >
-                        Model C (Offline)
                       </button>
                     </div>
                     
@@ -2355,11 +1656,54 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
                       </div>
                     )}
 
-                    {modelEngine === 'local' && (
-                      <p className="text-[8px] text-emerald-400 italic leading-normal mt-1.5">
-                        ✈️ 100% Offline Mode: Speak without internet inside trains, planes, or cellular dead zones!
+                  </div>
+
+                  {/* Twilio credentials */}
+                  <div className="space-y-2 shrink-0 border-b border-white/5 pb-4 text-left">
+                    <label className="text-[9px] text-slate-400 font-bold uppercase tracking-widest block flex items-center gap-1.5">
+                      <Phone size={11} className="text-indigo-400" />
+                      Twilio
+                    </label>
+                    <div className="p-3 bg-slate-950/40 border border-white/5 rounded-xl space-y-2">
+                      <div className="space-y-1">
+                        <label className="block text-[8px] text-slate-500 font-bold uppercase">Account SID</label>
+                        <input
+                          type="text"
+                          placeholder="AC..."
+                          value={twilioAccountSid}
+                          onChange={(e) => setTwilioAccountSid(e.target.value)}
+                          disabled={isActive}
+                          className="w-full bg-slate-950/80 border border-white/10 rounded px-2 py-1.5 text-xs text-slate-300 font-mono focus:outline-none focus:border-indigo-500/50 disabled:opacity-55"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="block text-[8px] text-slate-500 font-bold uppercase">Auth Token</label>
+                          <input
+                            type="password"
+                            placeholder="••••••••"
+                            value={twilioAuthToken}
+                            onChange={(e) => setTwilioAuthToken(e.target.value)}
+                            disabled={isActive}
+                            className="w-full bg-slate-950/80 border border-white/10 rounded px-2 py-1.5 text-xs text-slate-300 font-mono focus:outline-none focus:border-indigo-500/50 disabled:opacity-55"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[8px] text-slate-500 font-bold uppercase">Caller Number</label>
+                          <input
+                            type="text"
+                            placeholder="+1..."
+                            value={twilioPhoneNumber}
+                            onChange={(e) => setTwilioPhoneNumber(e.target.value)}
+                            disabled={isActive}
+                            className="w-full bg-slate-950/80 border border-white/10 rounded px-2 py-1.5 text-xs text-slate-300 font-mono focus:outline-none focus:border-indigo-500/50 disabled:opacity-55"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[8px] text-slate-500 italic leading-normal">
+                        Leave blank to use server `.env` values (`TWILIO_ACCOUNT_SID`, etc.).
                       </p>
-                    )}
+                    </div>
                   </div>
                   
                   <div className="space-y-1.5 shrink-0">

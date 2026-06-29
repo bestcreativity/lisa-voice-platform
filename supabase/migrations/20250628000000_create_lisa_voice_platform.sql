@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS public.voice_agents (
   client_info text,
   prior_conversation text,
   custom_role text,
-  model_engine text NOT NULL DEFAULT 'gemini' CHECK (model_engine IN ('gemini', 'elevenlabs', 'local')),
+  model_engine text NOT NULL DEFAULT 'gemini' CHECK (model_engine IN ('gemini', 'elevenlabs')),
   is_default boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
