@@ -36,6 +36,24 @@ const IPHONE_DIAL_KEYS: { digit: string; letters?: string }[] = [
   { digit: '#' },
 ];
 
+async function readApiJson(response: Response): Promise<Record<string, unknown>> {
+  const raw = await response.text();
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    if (/<!DOCTYPE|<html/i.test(raw)) {
+      throw new Error(
+        'API returned a web page, not JSON. Open http://localhost:3000 and run npm run dev (the full app server, not Vite-only on port 5173).'
+      );
+    }
+    throw new Error(raw.replace(/\s+/g, ' ').trim().slice(0, 120) || 'Server returned a non-JSON response.');
+  }
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    throw new Error(`Invalid JSON from server: ${raw.slice(0, 80)}`);
+  }
+}
+
 const DEFAULT_AGENTS: Record<string, AgentConfig> = {
   "Executive Recruiter": {
     name: "Lisa Nichols",
@@ -560,12 +578,12 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
         })
       });
 
-      const data = await response.json();
+      const data = await readApiJson(response);
       if (!response.ok) {
-        throw new Error(data.error || 'Server rejected Twilio call triggering.');
+        throw new Error((data.error as string) || 'Server rejected Twilio call triggering.');
       }
 
-      const callSid = data.callSid;
+      const callSid = data.callSid as string;
       setActiveCallSid(callSid);
       dispatchCallStarted({ phoneNumber: phoneNumber.trim(), callSid, status: 'ringing', provider: 'twilio' });
 
@@ -605,8 +623,8 @@ export default function VoiceAgent({ embedded = false }: { embedded?: boolean })
         });
 
         if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || 'Hangup failed.');
+          const data = await readApiJson(response);
+          throw new Error((data.error as string) || 'Hangup failed.');
         }
 
         setPhoneLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✅ Twilio session successfully completed & closed.`]);

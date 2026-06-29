@@ -24,6 +24,13 @@ export default defineConfig(({mode}) => {
         // Prevent full page reload when server writes diagnostic logs
         ignored: ['**/logs/**', '**/server_logs.txt'],
       },
+      // If Vite is started alone (port 5173), proxy API to the Express server
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3000',
+          changeOrigin: true,
+        },
+      },
     },
   };
 });
