@@ -40,6 +40,15 @@ async function readApiJson(response: Response): Promise<Record<string, unknown>>
   const raw = await response.text();
   const contentType = response.headers.get('content-type') ?? '';
   if (!contentType.includes('application/json')) {
+    if (
+      raw.includes('NOT_FOUND') ||
+      raw.includes('The page could not be found') ||
+      /cpt\d+::/i.test(raw)
+    ) {
+      throw new Error(
+        'No API on this URL (static host like Vercel). Deploy on Render with npm start, or run npm run dev locally at http://localhost:3000.'
+      );
+    }
     if (/<!DOCTYPE|<html/i.test(raw)) {
       throw new Error(
         'API returned a web page, not JSON. Open http://localhost:3000 and run npm run dev (the full app server, not Vite-only on port 5173).'

@@ -804,14 +804,25 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    // server.cjs is bundled into dist/ next to index.html — use __dirname, not cwd/dist
+    const distPath = __dirname;
+    const indexPath = path.join(distPath, 'index.html');
+    diagLog(`Production static root: ${distPath} (index exists: ${fs.existsSync(indexPath)})`);
+
+    app.use(express.static(distPath, { index: 'index.html' }));
+
     app.get('*', (req, res, next) => {
       if (req.path.startsWith('/api/')) {
         return next();
       }
-      res.sendFile(path.join(distPath, 'index.html'));
+      res.sendFile(indexPath, (err) => {
+        if (err) {
+          diagLog('sendFile failed:', err);
+          res.status(404).send('Not Found');
+        }
+      });
     });
+
     app.use('/api', (req, res) => {
       res.status(404).json({ error: 'API route not found.' });
     });
